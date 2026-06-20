@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "VITE_MOCK_API=true vite",
     "dev:full": "wrangler pages dev --proxy 5173 -- npm run dev",
     "build": "vite build",
     "lint": "eslint .",
