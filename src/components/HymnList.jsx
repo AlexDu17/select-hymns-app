@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import HymnCard from './HymnCard'
 import Pagination from './Pagination'
 import HymnSearchBar from './HymnSearchBar'
-import { searchByLyrics, findSnippet } from '../utils/lyricsSearch'
+import { searchByLyrics, findSnippet, highlightSnippet } from '../utils/lyricsSearch'
 
 const PER_PAGE = 10
 const PREDEFINED_TAGS = ['安静', '赞美', '恩典', '饼杯', '回应']
@@ -159,7 +159,7 @@ function LyricsResults({ query, results, onViewDetail }) {
 
   return (
     <div className="lyrics-results">
-      <p className="lyrics-results-hint">根据歌词匹配，最多显示 5 首</p>
+      <p className="lyrics-results-hint">根据歌词匹配，最多显示 10 首</p>
       {results.map(({ hymn, score }, i) => {
         const snippet = findSnippet(query, hymn.lyrics)
         const pct = Math.round(score * 100)
@@ -193,7 +193,15 @@ function LyricsResults({ query, results, onViewDetail }) {
               </span>
             </div>
             {snippet && (
-              <p className="lyrics-result-snippet">"{snippet}"</p>
+              <p className="lyrics-result-snippet">
+                "
+                {highlightSnippet(query, snippet).map((part, idx) =>
+                  part.highlight
+                    ? <mark key={idx} className="lyrics-highlight">{part.text}</mark>
+                    : part.text
+                )}
+                "
+              </p>
             )}
           </div>
         )

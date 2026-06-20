@@ -331,6 +331,20 @@
   font-style: italic;
 }
 
+.lyrics-highlight {
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-style: normal;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .lyrics-highlight {
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+}
+
 .search-input {
   max-width: 400px;
 }

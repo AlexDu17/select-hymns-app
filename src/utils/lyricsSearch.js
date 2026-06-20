@@ -56,11 +56,48 @@ export function findSnippet(query, lyrics, snippetLen = 60) {
 }
 
 // Return top-N hymns sorted by score. Requires query ≥ 2 chars.
-export function searchByLyrics(query, hymns, topN = 5) {
+export function searchByLyrics(query, hymns, topN = 10) {
   if (normalize(query).length < 2) return []
   return hymns
     .map(h => ({ hymn: h, score: scoreLyricsMatch(query, h.lyrics) }))
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, topN)
+}
+
+// Returns an array of { text, highlight } segments for rendering a snippet.
+// Highlights every position covered by a matching query bigram.
+// The snippet may start/end with '…' — those are preserved but not highlighted.
+export function highlightSnippet(query, snippet) {
+  const prefix = snippet.startsWith('…') ? '…' : ''
+  const suffix = snippet.endsWith('…') ? '…' : ''
+  const text = snippet.slice(prefix.length, snippet.length - suffix.length)
+
+  const q = normalize(query)
+  const bigrams = [...uniqueBigrams(q)]
+  const lit = new Array(text.length).fill(false)
+
+  for (const bg of bigrams) {
+    let pos = text.indexOf(bg)
+    while (pos !== -1) {
+      lit[pos] = true
+      lit[pos + 1] = true
+      pos = text.indexOf(bg, pos + 1)
+    }
+  }
+
+  const parts = []
+  if (prefix) parts.push({ text: prefix, highlight: false })
+
+  let i = 0
+  while (i < text.length) {
+    const hl = lit[i]
+    let j = i
+    while (j < text.length && lit[j] === hl) j++
+    parts.push({ text: text.slice(i, j), highlight: hl })
+    i = j
+  }
+
+  if (suffix) parts.push({ text: suffix, highlight: false })
+  return parts
 }
