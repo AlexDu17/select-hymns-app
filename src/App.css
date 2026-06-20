@@ -139,6 +139,12 @@
   @media (hover: none) {
     opacity: 1;
   }
+
+  /* On mobile, wrap actions to their own row and align with card body */
+  @media (max-width: 600px) {
+    width: 100%;
+    padding-left: 44px; /* hymn-card-number min-width (28px) + gap (16px) */
+  }
 }
 
 .action-btn {
@@ -327,6 +333,7 @@
 .hymn-card {
   display: flex;
   align-items: flex-start;
+  flex-wrap: wrap;
   gap: 16px;
   padding: 16px 0;
   border-bottom: 1px solid var(--border);
