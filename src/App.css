@@ -80,6 +80,13 @@
   }
 }
 
+.loading-state {
+  text-align: center;
+  padding: 80px 0;
+  color: #64748b;
+  font-size: 1rem;
+}
+
 /* Buttons */
 .btn {
   display: inline-flex;

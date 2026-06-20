@@ -52,6 +52,8 @@ export default function SelectionWorkbench({ hymns, selectionHistory, onSave }) 
   }
 
   function removeHymn(id) {
+    const hymn = hymns.find(h => h.id === id)
+    if (!window.confirm(`确定要从已选列表中移除《${hymn?.title ?? '该诗歌'}》吗？`)) return
     setSelectedIds(prev => prev.filter(i => i !== id))
     setSaved(false)
   }

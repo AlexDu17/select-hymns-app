@@ -1,0 +1,8 @@
+name = "select-hymns-app"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "./dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hymns"
+database_id = "f40d0df9-777e-46c0-badb-a18b52aca269"

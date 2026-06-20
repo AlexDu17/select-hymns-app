@@ -3,43 +3,42 @@ import HymnList from './components/HymnList'
 import AddHymnForm from './components/AddHymnForm'
 import HymnDetail from './components/HymnDetail'
 import SelectionPage from './components/SelectionPage'
+import { api } from './api'
 import './App.css'
 
-const HYMNS_KEY = 'hymns-library'
-const HISTORY_KEY = 'hymns-selection-history'
-
 function App() {
-  const [hymns, setHymns] = useState(() => {
-    const saved = localStorage.getItem(HYMNS_KEY)
-    return saved ? JSON.parse(saved) : []
-  })
-  const [selectionHistory, setSelectionHistory] = useState(() => {
-    const saved = localStorage.getItem(HISTORY_KEY)
-    return saved ? JSON.parse(saved) : {}
-  })
+  const [hymns, setHymns] = useState([])
+  const [selectionHistory, setSelectionHistory] = useState({})
+  const [loading, setLoading] = useState(true)
   const [page, setPage] = useState('library')   // 'library' | 'selection'
   const [view, setView] = useState('list')       // 'list' | 'add' | 'edit' | 'detail'
   const [editingHymn, setEditingHymn] = useState(null)
   const [detailHymn, setDetailHymn] = useState(null)
 
   useEffect(() => {
-    localStorage.setItem(HYMNS_KEY, JSON.stringify(hymns))
-  }, [hymns])
+    Promise.all([api.getHymns(), api.getHistory()])
+      .then(([hymnsData, historyData]) => {
+        setHymns(hymnsData)
+        setSelectionHistory(historyData)
+      })
+      .catch(() => alert('加载数据失败，请刷新页面重试。'))
+      .finally(() => setLoading(false))
+  }, [])
 
-  useEffect(() => {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(selectionHistory))
-  }, [selectionHistory])
-
-  function handleSubmitForm(data) {
-    if (view === 'edit' && editingHymn) {
-      setHymns(prev => prev.map(h =>
-        h.id === editingHymn.id ? { ...h, ...data } : h
-      ))
-      setEditingHymn(null)
-    } else {
-      setHymns(prev => [...prev, { ...data, id: Date.now() }])
+  async function handleSubmitForm(data) {
+    try {
+      if (view === 'edit' && editingHymn) {
+        const updated = await api.updateHymn(editingHymn.id, data)
+        setHymns(prev => prev.map(h => h.id === editingHymn.id ? updated : h))
+        setEditingHymn(null)
+      } else {
+        const created = await api.createHymn(data)
+        setHymns(prev => [...prev, created])
+      }
+      setView('list')
+    } catch (e) {
+      alert(`保存失败：${e.message}`)
     }
-    setView('list')
   }
 
   function handleEdit(hymn) {
@@ -47,9 +46,14 @@ function App() {
     setView('edit')
   }
 
-  function handleDelete(id) {
+  async function handleDelete(id) {
     if (!window.confirm('确定要删除这首诗歌吗？')) return
-    setHymns(prev => prev.filter(h => h.id !== id))
+    try {
+      await api.deleteHymn(id)
+      setHymns(prev => prev.filter(h => h.id !== id))
+    } catch (e) {
+      alert(`删除失败：${e.message}`)
+    }
   }
 
   function handleCancel() {
@@ -62,16 +66,25 @@ function App() {
     setView('detail')
   }
 
-  function handleAddToQueue(hymnId, date) {
-    setSelectionHistory(prev => {
-      const existing = prev[date] ?? []
-      if (existing.includes(hymnId)) return prev
-      return { ...prev, [date]: [...existing, hymnId] }
-    })
+  async function handleAddToQueue(hymnId, date) {
+    const existing = selectionHistory[date] ?? []
+    if (existing.includes(hymnId)) return
+    const newIds = [...existing, hymnId]
+    try {
+      await api.saveHistory(date, newIds)
+      setSelectionHistory(prev => ({ ...prev, [date]: newIds }))
+    } catch (e) {
+      alert(`加入备选失败：${e.message}`)
+    }
   }
 
-  function handleSaveSelection(date, ids) {
-    setSelectionHistory(prev => ({ ...prev, [date]: ids }))
+  async function handleSaveSelection(date, ids) {
+    try {
+      await api.saveHistory(date, ids)
+      setSelectionHistory(prev => ({ ...prev, [date]: ids }))
+    } catch (e) {
+      alert(`保存失败：${e.message}`)
+    }
   }
 
   function handleNavigate(newPage) {
@@ -102,7 +115,7 @@ function App() {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = ev => {
+    reader.onload = async ev => {
       try {
         const data = JSON.parse(ev.target.result)
         if (!Array.isArray(data.hymns) || typeof data.selectionHistory !== 'object') {
@@ -112,10 +125,18 @@ function App() {
         if (!window.confirm(
           `导入后将替换现有的 ${hymns.length} 首诗歌和全部历史数据。\n备份文件包含 ${data.hymns.length} 首诗歌。\n\n确定继续吗？`
         )) return
-        setHymns(data.hymns)
-        setSelectionHistory(data.selectionHistory)
-        setView('list')
-        setPage('library')
+        setLoading(true)
+        try {
+          const result = await api.importAll(data.hymns, data.selectionHistory)
+          setHymns(result.hymns)
+          setSelectionHistory(result.selectionHistory)
+          setView('list')
+          setPage('library')
+        } catch (err) {
+          alert(`导入失败：${err.message}`)
+        } finally {
+          setLoading(false)
+        }
       } catch {
         alert('文件解析失败，请确保选择了正确的 JSON 备份文件。')
       }
@@ -132,7 +153,7 @@ function App() {
           <p className="app-subtitle">教会诗班敬拜赞美诗歌管理</p>
         </div>
         <div className="app-header-actions">
-          <button className="btn btn-secondary" onClick={handleExport}>
+          <button className="btn btn-secondary" onClick={handleExport} disabled={loading}>
             导出备份
           </button>
           <label className="btn btn-secondary import-label" title="导入 JSON 备份文件">
@@ -145,7 +166,7 @@ function App() {
             />
           </label>
           {page === 'library' && view === 'list' && (
-            <button className="btn btn-primary" onClick={() => setView('add')}>
+            <button className="btn btn-primary" onClick={() => setView('add')} disabled={loading}>
               + 添加诗歌
             </button>
           )}
@@ -168,7 +189,9 @@ function App() {
       </nav>
 
       <main className="app-main">
-        {page === 'library' ? (
+        {loading ? (
+          <div className="loading-state">加载中…</div>
+        ) : page === 'library' ? (
           view === 'list' ? (
             <HymnList
               hymns={hymns}
