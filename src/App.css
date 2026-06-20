@@ -234,6 +234,103 @@
   margin-bottom: 16px;
 }
 
+/* Search mode toggle (曲名/主题 · 歌词) */
+.search-mode-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.search-mode-btn {
+  padding: 6px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--sans);
+  cursor: pointer;
+  margin-bottom: -1px;
+  transition: color 0.15s;
+
+  &:hover { color: var(--text-h); }
+  &.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 500;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+}
+
+/* Lyrics search results */
+.lyrics-results-hint {
+  font-size: 13px;
+  color: var(--text);
+  margin: 0 0 12px;
+}
+
+.lyrics-results {
+  margin-top: 4px;
+}
+
+.lyrics-result-item {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+
+  &:first-of-type {
+    border-top: 1px solid var(--border);
+  }
+}
+
+.lyrics-result-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lyrics-result-rank {
+  font-size: 13px;
+  color: var(--text);
+  min-width: 18px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.lyrics-result-title {
+  font-size: 16px;
+  margin-bottom: 0;
+}
+
+.lyrics-result-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.lyrics-result-score {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) calc(var(--score) * 20%), var(--accent-bg));
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.lyrics-result-snippet {
+  margin: 8px 0 0 28px;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.7;
+  font-style: italic;
+}
+
 .search-input {
   max-width: 400px;
 }
