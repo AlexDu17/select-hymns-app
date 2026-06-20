@@ -1,0 +1,126 @@
+import { useState } from 'react'
+
+const PREDEFINED_TAGS = ['安静', '赞美', '恩典', '饼杯', '回应']
+
+export default function AddHymnForm({ onSubmit, onCancel, initialHymn = null }) {
+  const isEdit = initialHymn !== null
+  const [title, setTitle] = useState(initialHymn?.title ?? '')
+  const [tags, setTags] = useState(initialHymn?.tags ?? [])
+  const [theme, setTheme] = useState(initialHymn?.theme ?? '')
+  const [lyrics, setLyrics] = useState(initialHymn?.lyrics ?? '')
+  const [lastSelectedDate, setLastSelectedDate] = useState(initialHymn?.lastSelectedDate ?? '')
+  const [titleError, setTitleError] = useState('')
+
+  function toggleTag(tag) {
+    setTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    )
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    if (!isEdit && !title.trim()) {
+      setTitleError('请填写歌名')
+      return
+    }
+    onSubmit({ title: title.trim(), tags, theme: theme.trim(), lyrics: lyrics.trim(), lastSelectedDate })
+  }
+
+  return (
+    <form className="add-hymn-form" onSubmit={handleSubmit} noValidate>
+      <div className="form-header">
+        <h2>{isEdit ? '编辑诗歌' : '添加诗歌'}</h2>
+        <button type="button" className="btn btn-secondary" onClick={onCancel}>
+          返回曲库
+        </button>
+      </div>
+
+      <div className="form-group">
+        <span className="form-label">
+          歌名{!isEdit && <span className="form-required">*</span>}
+        </span>
+        {isEdit ? (
+          <p className="form-readonly">{initialHymn.title}</p>
+        ) : (
+          <>
+            <input
+              id="hymn-title"
+              className="form-input"
+              type="text"
+              placeholder="请输入诗歌名称"
+              value={title}
+              onChange={e => {
+                setTitle(e.target.value)
+                if (e.target.value.trim()) setTitleError('')
+              }}
+            />
+            {titleError && <p className="form-error">{titleError}</p>}
+          </>
+        )}
+      </div>
+
+      <div className="form-group">
+        <span className="form-label">标签</span>
+        <div className="tag-checkbox-group">
+          {PREDEFINED_TAGS.map(tag => (
+            <label key={tag} className="tag-checkbox-label">
+              <span className={`tag tag-${tag}`}>{tag}</span>
+              <input
+                type="checkbox"
+                checked={tags.includes(tag)}
+                onChange={() => toggleTag(tag)}
+              />
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label className="form-label" htmlFor="hymn-theme">主题</label>
+        <input
+          id="hymn-theme"
+          className="form-input"
+          type="text"
+          placeholder="例如：感恩、悔改、信心…"
+          value={theme}
+          onChange={e => setTheme(e.target.value)}
+        />
+      </div>
+
+      <div className="form-group">
+        <label className="form-label" htmlFor="hymn-lyrics">歌词</label>
+        <textarea
+          id="hymn-lyrics"
+          className="form-textarea"
+          placeholder="请输入歌词内容…"
+          value={lyrics}
+          onChange={e => setLyrics(e.target.value)}
+          rows={6}
+        />
+      </div>
+
+      <div className="form-group">
+        <label className="form-label" htmlFor="hymn-last-selected">
+          上次挑选日期
+          <span className="form-optional">（选填）</span>
+        </label>
+        <input
+          id="hymn-last-selected"
+          className="form-input form-input-date"
+          type="date"
+          value={lastSelectedDate}
+          onChange={e => setLastSelectedDate(e.target.value)}
+        />
+      </div>
+
+      <div className="form-actions">
+        <button type="submit" className="btn btn-primary">
+          {isEdit ? '保存修改' : '保存诗歌'}
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={onCancel}>
+          取消
+        </button>
+      </div>
+    </form>
+  )
+}
