@@ -135,6 +135,9 @@ export default function SelectionWorkbench({ hymns, selectionHistory, onSave }) 
                           <span key={t} className={`tag ${PREDEFINED_TAGS.includes(t) ? `tag-${t}` : 'tag-other'}`}>{t}</span>
                         ))}
                         {h.theme && <span className="pick-row-theme">{h.theme}</span>}
+                        {h.lastSelectedDate && (
+                          <span className="pick-row-last-selected">上次挑选：{formatDisplayDate(h.lastSelectedDate)}</span>
+                        )}
                       </div>
                     </div>
                     <button
