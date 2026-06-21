@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import HymnSearchBar from './HymnSearchBar'
+import { searchByLyrics } from '../utils/lyricsSearch'
 
 const PREDEFINED_TAGS = ['安静', '赞美', '恩典', '饼杯', '回应']
 
@@ -18,14 +19,20 @@ export default function SelectionWorkbench({ hymns, selectionHistory, onSave }) 
   const tomorrow = getTomorrow()
   const [targetDate, setTargetDate] = useState('')
   const [selectedIds, setSelectedIds] = useState([])
+  const [searchMode, setSearchMode] = useState('text')
   const [searchText, setSearchText] = useState('')
   const [activeTags, setActiveTags] = useState([])
+  const [lyricsQuery, setLyricsQuery] = useState('')
   const [dragIndex, setDragIndex] = useState(null)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     if (!targetDate) return
     setSelectedIds(selectionHistory[targetDate] ?? [])
+    setSearchMode('text')
+    setSearchText('')
+    setActiveTags([])
+    setLyricsQuery('')
     setSaved(false)
   }, [targetDate])
 
@@ -45,6 +52,11 @@ export default function SelectionWorkbench({ hymns, selectionHistory, onSave }) 
       return matchText && matchTags
     })
   }, [hymns, searchText, activeTags, selectedIds])
+
+  const lyricsResults = useMemo(
+    () => searchByLyrics(lyricsQuery, hymns).filter(({ hymn }) => !selectedIds.includes(hymn.id)),
+    [lyricsQuery, hymns, selectedIds]
+  )
 
   function addHymn(id) {
     setSelectedIds(prev => [...prev, id])
@@ -93,11 +105,7 @@ export default function SelectionWorkbench({ hymns, selectionHistory, onSave }) 
             type="date"
             min={tomorrow}
             value={targetDate}
-            onChange={e => {
-              setTargetDate(e.target.value)
-              setSearchText('')
-              setActiveTags([])
-            }}
+            onChange={e => setTargetDate(e.target.value)}
           />
         </div>
         {targetDate && (
@@ -111,44 +119,80 @@ export default function SelectionWorkbench({ hymns, selectionHistory, onSave }) 
           <div className="workbench-panel workbench-search-panel">
             <h3 className="workbench-panel-title">从曲库选歌</h3>
             <HymnSearchBar
+              searchMode={searchMode}
+              onModeChange={setSearchMode}
               searchText={searchText}
               activeTags={activeTags}
               onSearchChange={setSearchText}
               onTagToggle={tag => setActiveTags(prev =>
                 prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
               )}
+              lyricsQuery={lyricsQuery}
+              onLyricsChange={setLyricsQuery}
             />
             <div className="pick-list">
-              {searchResults.length === 0 ? (
-                <p className="pick-hint">
-                  {hymns.length === selectedIds.length
-                    ? '所有诗歌都已加入'
-                    : '没有找到匹配的诗歌'}
-                </p>
-              ) : (
-                searchResults.map(h => (
-                  <div key={h.id} className="pick-row">
-                    <div className="pick-row-info">
-                      <span className="pick-row-title">{h.title}</span>
-                      <div className="pick-row-meta">
-                        {h.tags.map(t => (
-                          <span key={t} className={`tag ${PREDEFINED_TAGS.includes(t) ? `tag-${t}` : 'tag-other'}`}>{t}</span>
-                        ))}
-                        {h.theme && <span className="pick-row-theme">{h.theme}</span>}
-                        {h.lastSelectedDate && (
-                          <span className="pick-row-last-selected">上次挑选：{formatDisplayDate(h.lastSelectedDate)}</span>
-                        )}
+              {searchMode === 'lyrics' ? (
+                lyricsResults.length === 0 ? (
+                  <p className="pick-hint">
+                    {lyricsQuery.trim().length < 2 ? '输入至少 2 个字开始搜索' : '没有找到匹配的歌词'}
+                  </p>
+                ) : (
+                  lyricsResults.map(({ hymn: h, score }) => (
+                    <div key={h.id} className="pick-row">
+                      <div className="pick-row-info">
+                        <span className="pick-row-title">{h.title}</span>
+                        <div className="pick-row-meta">
+                          {h.tags.map(t => (
+                            <span key={t} className={`tag ${PREDEFINED_TAGS.includes(t) ? `tag-${t}` : 'tag-other'}`}>{t}</span>
+                          ))}
+                          {h.theme && <span className="pick-row-theme">{h.theme}</span>}
+                          <span className="lyrics-result-score" style={{ '--score': score }}>
+                            {Math.round(score * 100)}%
+                          </span>
+                        </div>
                       </div>
+                      <button
+                        type="button"
+                        className="btn btn-primary pick-add-btn"
+                        onClick={() => addHymn(h.id)}
+                      >
+                        + 添加
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-primary pick-add-btn"
-                      onClick={() => addHymn(h.id)}
-                    >
-                      + 添加
-                    </button>
-                  </div>
-                ))
+                  ))
+                )
+              ) : (
+                searchResults.length === 0 ? (
+                  <p className="pick-hint">
+                    {hymns.length === selectedIds.length
+                      ? '所有诗歌都已加入'
+                      : '没有找到匹配的诗歌'}
+                  </p>
+                ) : (
+                  searchResults.map(h => (
+                    <div key={h.id} className="pick-row">
+                      <div className="pick-row-info">
+                        <span className="pick-row-title">{h.title}</span>
+                        <div className="pick-row-meta">
+                          {h.tags.map(t => (
+                            <span key={t} className={`tag ${PREDEFINED_TAGS.includes(t) ? `tag-${t}` : 'tag-other'}`}>{t}</span>
+                          ))}
+                          {h.theme && <span className="pick-row-theme">{h.theme}</span>}
+                          {h.lastSelectedDate && (
+                            <span className="pick-row-last-selected">上次挑选：{formatDisplayDate(h.lastSelectedDate)}</span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-primary pick-add-btn"
+                        onClick={() => addHymn(h.id)}
+                      >
+                        + 添加
+                      </button>
+                    </div>
+                  ))
+                )
               )}
             </div>
           </div>
