@@ -1,3 +1,46 @@
+const TOKEN_MAX_AGE = 30 * 24 * 60 * 60 // 30 days in seconds
+
+async function createToken(secret) {
+  const payload = btoa(JSON.stringify({ u: 'admin', exp: Date.now() + TOKEN_MAX_AGE * 1000 }))
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  )
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload))
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)))
+  return `${payload}.${sigB64}`
+}
+
+async function verifyToken(token, secret) {
+  const dot = token.lastIndexOf('.')
+  if (dot === -1) return null
+  const payload = token.slice(0, dot)
+  const sig = token.slice(dot + 1)
+  try {
+    const key = await crypto.subtle.importKey(
+      'raw', new TextEncoder().encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']
+    )
+    const valid = await crypto.subtle.verify(
+      'HMAC', key,
+      Uint8Array.from(atob(sig), c => c.charCodeAt(0)),
+      new TextEncoder().encode(payload)
+    )
+    if (!valid) return null
+    const data = JSON.parse(atob(payload))
+    if (data.exp < Date.now()) return null
+    return data
+  } catch {
+    return null
+  }
+}
+
+function getSessionToken(request) {
+  const cookie = request.headers.get('Cookie') ?? ''
+  const match = cookie.match(/(?:^|;\s*)session=([^;]+)/)
+  return match ? match[1] : null
+}
+
 function rowToHymn(row) {
   return {
     id: row.id,
@@ -24,6 +67,43 @@ export async function onRequest({ request, env, params }) {
   const route = (params.route ?? []).join('/')
   const method = request.method.toUpperCase()
   const DB = env.DB
+  const SECRET = env.ADMIN_PWD
+
+  // POST /login — no auth required
+  if (method === 'POST' && route === 'login') {
+    const { username, password } = await request.json()
+    if (!SECRET) return err('服务器未配置密码', 500)
+    if (username !== 'admin' || password !== SECRET) return err('用户名或密码错误', 401)
+    const token = await createToken(SECRET)
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Set-Cookie': `session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${TOKEN_MAX_AGE}`,
+      },
+    })
+  }
+
+  // POST /logout — no auth required
+  if (method === 'POST' && route === 'logout') {
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Set-Cookie': 'session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0',
+      },
+    })
+  }
+
+  // All other routes require a valid session
+  const token = getSessionToken(request)
+  const session = token && SECRET ? await verifyToken(token, SECRET) : null
+  if (!session) return err('未登录', 401)
+
+  // GET /me
+  if (method === 'GET' && route === 'me') {
+    return json({ username: session.u })
+  }
 
   // GET /hymns
   if (method === 'GET' && route === 'hymns') {
@@ -100,7 +180,6 @@ export async function onRequest({ request, env, params }) {
     await DB.prepare('DELETE FROM selection_history').run()
     await DB.prepare('DELETE FROM hymns').run()
 
-    // Insert hymns and build oldId → newId map
     const idMap = {}
     for (const h of hymns) {
       const row = await DB.prepare(
@@ -109,7 +188,6 @@ export async function onRequest({ request, env, params }) {
       idMap[h.id] = row.id
     }
 
-    // Insert history with remapped IDs
     for (const [date, ids] of Object.entries(selectionHistory ?? {})) {
       const remapped = ids.map(oid => idMap[oid]).filter(Boolean)
       if (remapped.length === 0) continue
@@ -120,7 +198,6 @@ export async function onRequest({ request, env, params }) {
       ).bind(...values).run()
     }
 
-    // Return new state
     const { results: hymnRows } = await DB.prepare('SELECT * FROM hymns ORDER BY created_at ASC').all()
     const { results: histRows } = await DB.prepare(
       'SELECT target_date, hymn_id FROM selection_history ORDER BY target_date ASC, position ASC'

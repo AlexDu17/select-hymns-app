@@ -11,10 +11,20 @@ function mockApiPlugin() {
   let hymns = seed.hymns.map(h => ({ ...h }))
   let selectionHistory = { ...(seed.selectionHistory ?? {}) }
   let nextId = hymns.reduce((max, h) => Math.max(max, h.id ?? 0), 0) + 1
+  let mockSession = false // in-memory session state for dev
 
   function send(res, data, status = 200) {
     res.writeHead(status, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify(data))
+  }
+
+  function sendWithCookie(res, data, cookie, status = 200) {
+    res.writeHead(status, { 'Content-Type': 'application/json', 'Set-Cookie': cookie })
+    res.end(JSON.stringify(data))
+  }
+
+  function hasSession(req) {
+    return (req.headers['cookie'] ?? '').includes('session=mock')
   }
 
   return {
@@ -29,6 +39,32 @@ function mockApiPlugin() {
         req.on('data', chunk => { body += chunk })
         req.on('end', () => {
           const data = body ? JSON.parse(body) : null
+
+          // POST /api/login — any password works for 'admin' in dev
+          if (method === 'POST' && path === 'login') {
+            if (data?.username === 'admin') {
+              mockSession = true
+              return sendWithCookie(res, { ok: true }, 'session=mock; Path=/; SameSite=Strict')
+            }
+            return send(res, { error: '用户名或密码错误' }, 401)
+          }
+
+          // POST /api/logout
+          if (method === 'POST' && path === 'logout') {
+            mockSession = false
+            return sendWithCookie(res, { ok: true }, 'session=; Path=/; Max-Age=0')
+          }
+
+          // GET /api/me
+          if (method === 'GET' && path === 'me') {
+            if (mockSession && hasSession(req)) return send(res, { username: 'admin' })
+            return send(res, { error: '未登录' }, 401)
+          }
+
+          // All other routes require session
+          if (!mockSession || !hasSession(req)) {
+            return send(res, { error: '未登录' }, 401)
+          }
 
           // GET /api/hymns
           if (method === 'GET' && path === 'hymns') {

@@ -3,19 +3,34 @@ import HymnList from './components/HymnList'
 import AddHymnForm from './components/AddHymnForm'
 import HymnDetail from './components/HymnDetail'
 import SelectionPage from './components/SelectionPage'
-import { api } from './api'
+import LoginPage from './components/LoginPage'
+import { api, setUnauthorizedHandler } from './api'
 import './App.css'
 
 function App() {
+  const [authed, setAuthed] = useState(null)    // null=checking, false=login, true=app
   const [hymns, setHymns] = useState([])
   const [selectionHistory, setSelectionHistory] = useState({})
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [page, setPage] = useState('library')   // 'library' | 'selection'
   const [view, setView] = useState('list')       // 'list' | 'add' | 'edit' | 'detail'
   const [editingHymn, setEditingHymn] = useState(null)
   const [detailHymn, setDetailHymn] = useState(null)
 
+  // Check session on mount
   useEffect(() => {
+    api.me().then(user => setAuthed(user ? true : false))
+  }, [])
+
+  // Load data whenever authed becomes true
+  useEffect(() => {
+    if (authed !== true) return
+    setUnauthorizedHandler(() => {
+      setAuthed(false)
+      setHymns([])
+      setSelectionHistory({})
+    })
+    setLoading(true)
     Promise.all([api.getHymns(), api.getHistory()])
       .then(([hymnsData, historyData]) => {
         setHymns(hymnsData)
@@ -23,7 +38,14 @@ function App() {
       })
       .catch(() => alert('加载数据失败，请刷新页面重试。'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [authed])
+
+  async function handleLogout() {
+    await api.logout().catch(() => {})
+    setAuthed(false)
+    setHymns([])
+    setSelectionHistory({})
+  }
 
   async function handleSubmitForm(data) {
     try {
@@ -145,6 +167,9 @@ function App() {
     e.target.value = ''
   }
 
+  if (authed === null) return <div className="loading-state">检查登录状态…</div>
+  if (authed === false) return <LoginPage onLogin={() => setAuthed(true)} />
+
   return (
     <div className="app">
       <header className="app-header">
@@ -153,6 +178,9 @@ function App() {
           <p className="app-subtitle">教会诗班敬拜赞美诗歌管理</p>
         </div>
         <div className="app-header-actions">
+          <button className="btn btn-secondary" onClick={handleLogout}>
+            退出
+          </button>
           <button className="btn btn-secondary" onClick={handleExport} disabled={loading}>
             导出备份
           </button>
