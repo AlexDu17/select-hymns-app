@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useAudioPlayer } from '../hooks/useAudioPlayer'
+import { api } from '../api'
 
 const PREDEFINED_TAGS = ['安静', '赞美', '恩典', '饼杯', '回应']
 
@@ -18,6 +20,8 @@ export default function HymnCard({ hymn, index, onEdit, onDelete, onAddToQueue, 
   const [showModal, setShowModal] = useState(false)
   const [queueDate, setQueueDate] = useState('')
   const tomorrow = getTomorrow()
+  const audioUrl = hymn.audioKey ? api.getAudioUrl(hymn.id) : null
+  const { isPlaying, isLoading, toggle } = useAudioPlayer(audioUrl)
 
   function handleConfirm() {
     if (!queueDate) return
@@ -54,6 +58,16 @@ export default function HymnCard({ hymn, index, onEdit, onDelete, onAddToQueue, 
           </div>
         </div>
         <div className="hymn-card-actions">
+          {audioUrl && (
+            <button
+              type="button"
+              className={`action-btn action-btn-play${isPlaying ? ' playing' : ''}`}
+              onClick={toggle}
+              aria-label={isPlaying ? '暂停' : '播放'}
+            >
+              {isLoading ? <span className="play-loading" /> : isPlaying ? '⏸' : '▶'}
+            </button>
+          )}
           <button
             type="button"
             className="action-btn action-btn-queue"
