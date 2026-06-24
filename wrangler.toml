@@ -6,3 +6,7 @@ pages_build_output_dir = "./dist"
 binding = "DB"
 database_name = "hymns"
 database_id = "f40d0df9-777e-46c0-badb-a18b52aca269"
+
+[[r2_buckets]]
+binding = "HYMNS_AUDIO"
+bucket_name = "hymns"

@@ -48,14 +48,27 @@ function App() {
   }
 
   async function handleSubmitForm(data) {
+    const { audioFile, removeAudio, ...hymnData } = data
     try {
+      let hymn
       if (view === 'edit' && editingHymn) {
-        const updated = await api.updateHymn(editingHymn.id, data)
-        setHymns(prev => prev.map(h => h.id === editingHymn.id ? updated : h))
+        hymn = await api.updateHymn(editingHymn.id, hymnData)
+      } else {
+        hymn = await api.createHymn(hymnData)
+      }
+
+      if (removeAudio && hymn.audioKey) {
+        await api.deleteAudio(hymn.id)
+        hymn = { ...hymn, audioKey: null }
+      } else if (audioFile) {
+        hymn = await api.uploadAudio(hymn.id, audioFile)
+      }
+
+      if (view === 'edit' && editingHymn) {
+        setHymns(prev => prev.map(h => h.id === editingHymn.id ? hymn : h))
         setEditingHymn(null)
       } else {
-        const created = await api.createHymn(data)
-        setHymns(prev => [...prev, created])
+        setHymns(prev => [...prev, hymn])
       }
       setView('list')
     } catch (e) {

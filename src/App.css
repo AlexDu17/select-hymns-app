@@ -1288,3 +1288,89 @@
   padding: 11px;
   font-size: 15px;
 }
+
+/* ── Audio upload field ──────────────────────────── */
+.audio-file-input {
+  display: none;
+}
+
+.audio-pick-label {
+  display: inline-block;
+  cursor: pointer;
+}
+
+.audio-replace-label {
+  display: inline-block;
+  cursor: pointer;
+}
+
+.audio-existing {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.audio-existing-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.audio-existing-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.audio-selected {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--code-bg);
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+}
+
+.audio-selected-name {
+  font-size: 13px;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audio-pending-remove {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--code-bg);
+  border: 1px dashed var(--danger, #e53e3e);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--danger, #e53e3e);
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--danger, #e53e3e);
+  border: 1px solid var(--danger, #e53e3e);
+}
+
+.btn-danger:hover {
+  background: var(--danger, #e53e3e);
+  color: #fff;
+}

@@ -38,6 +38,18 @@ export const api = {
   updateHymn: (id, data) => request('PUT', `hymns/${id}`, data),
   deleteHymn: (id) => request('DELETE', `hymns/${id}`),
 
+  // Audio — uploadAudio returns the updated hymn with audioKey set
+  uploadAudio: async (hymnId, file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await fetch(`/api/hymns/${hymnId}/audio`, { method: 'PUT', body: formData })
+    if (res.status === 401) { unauthorizedHandler?.(); throw new Error('未登录') }
+    if (!res.ok) { const t = await res.text().catch(() => ''); throw new Error(`上传失败: ${t}`) }
+    return res.json()
+  },
+  deleteAudio: (hymnId) => request('DELETE', `hymns/${hymnId}/audio`),
+  getAudioUrl: (hymnId) => `/api/hymns/${hymnId}/audio`,
+
   // History
   getHistory: () => request('GET', 'history'),
   saveHistory: (date, ids) => request('PUT', `history/${date}`, ids),

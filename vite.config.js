@@ -35,10 +35,15 @@ function mockApiPlugin() {
       server.middlewares.use('/api', (req, res, next) => {
         const path = req.url.replace(/^\//, '')
         const method = req.method.toUpperCase()
-        let body = ''
-        req.on('data', chunk => { body += chunk })
+        const chunks = []
+        req.on('data', chunk => { chunks.push(chunk) })
         req.on('end', () => {
-          const data = body ? JSON.parse(body) : null
+          const contentType = req.headers['content-type'] ?? ''
+          const isMultipart = contentType.startsWith('multipart/')
+          let data = null
+          if (!isMultipart && chunks.length > 0) {
+            try { data = JSON.parse(Buffer.concat(chunks).toString('utf-8')) } catch {}
+          }
 
           // POST /api/login — any password works for 'admin' in dev
           if (method === 'POST' && path === 'login') {
@@ -64,6 +69,30 @@ function mockApiPlugin() {
           // All other routes require session
           if (!mockSession || !hasSession(req)) {
             return send(res, { error: '未登录' }, 401)
+          }
+
+          // Audio routes — must come before hymn CRUD routes
+          const hymnAudioMatch = path.match(/^hymns\/(\d+)\/audio$/)
+
+          // PUT /api/hymns/:id/audio (mock: record audioKey without storing file)
+          if (method === 'PUT' && hymnAudioMatch) {
+            const id = Number(hymnAudioMatch[1])
+            const key = `hymns/${id}.mp3`
+            hymns = hymns.map(h => h.id === id ? { ...h, audioKey: key } : h)
+            const updated = hymns.find(h => h.id === id)
+            return updated ? send(res, { ...updated }) : send(res, { error: 'not found' }, 404)
+          }
+
+          // DELETE /api/hymns/:id/audio
+          if (method === 'DELETE' && hymnAudioMatch) {
+            const id = Number(hymnAudioMatch[1])
+            hymns = hymns.map(h => h.id === id ? { ...h, audioKey: null } : h)
+            return send(res, { ok: true })
+          }
+
+          // GET /api/hymns/:id/audio (mock: no real audio in dev)
+          if (method === 'GET' && hymnAudioMatch) {
+            return send(res, { error: 'dev 模式不提供音频文件' }, 404)
           }
 
           // GET /api/hymns

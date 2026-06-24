@@ -49,6 +49,7 @@ function rowToHymn(row) {
     theme: row.theme || '',
     lyrics: row.lyrics || '',
     lastSelectedDate: row.last_selected_date || '',
+    audioKey: row.audio_key || null,
   }
 }
 
@@ -123,6 +124,58 @@ export async function onRequest({ request, env, params }) {
     return json(rowToHymn(row), 201)
   }
 
+  // Audio routes — must come before hymnMatch checks
+  const hymnAudioMatch = route.match(/^hymns\/(\d+)\/audio$/)
+
+  // PUT /hymns/:id/audio — upload MP3 to R2
+  if (method === 'PUT' && hymnAudioMatch) {
+    const id = Number(hymnAudioMatch[1])
+    const formData = await request.formData()
+    const file = formData.get('file')
+    if (!file) return err('no file', 400)
+    const key = `hymns/${id}.mp3`
+    await env.HYMNS_AUDIO.put(key, file.stream(), {
+      httpMetadata: { contentType: 'audio/mpeg' },
+    })
+    await DB.prepare('UPDATE hymns SET audio_key=? WHERE id=?').bind(key, id).run()
+    const row = await DB.prepare('SELECT * FROM hymns WHERE id=?').bind(id).first()
+    if (!row) return err('not found', 404)
+    return json(rowToHymn(row))
+  }
+
+  // DELETE /hymns/:id/audio — remove from R2, clear DB
+  if (method === 'DELETE' && hymnAudioMatch) {
+    const id = Number(hymnAudioMatch[1])
+    const row = await DB.prepare('SELECT audio_key FROM hymns WHERE id=?').bind(id).first()
+    if (row?.audio_key) await env.HYMNS_AUDIO.delete(row.audio_key)
+    await DB.prepare('UPDATE hymns SET audio_key=NULL WHERE id=?').bind(id).run()
+    return json({ ok: true })
+  }
+
+  // GET /hymns/:id/audio — stream from R2 with range support for seeking
+  if (method === 'GET' && hymnAudioMatch) {
+    const id = Number(hymnAudioMatch[1])
+    const row = await DB.prepare('SELECT audio_key FROM hymns WHERE id=?').bind(id).first()
+    if (!row?.audio_key) return err('no audio', 404)
+    const rangeHeader = request.headers.get('Range')
+    const obj = await env.HYMNS_AUDIO.get(row.audio_key, {
+      range: rangeHeader ? request.headers : undefined,
+    })
+    if (!obj) return err('audio not found', 404)
+    const headers = {
+      'Content-Type': 'audio/mpeg',
+      'Accept-Ranges': 'bytes',
+      'Content-Length': String(obj.size),
+      'Cache-Control': 'private, max-age=3600',
+    }
+    if (obj.range) {
+      const { offset = 0 } = obj.range
+      headers['Content-Range'] = `bytes ${offset}-${offset + obj.size - 1}/*`
+      return new Response(obj.body, { status: 206, headers })
+    }
+    return new Response(obj.body, { status: 200, headers })
+  }
+
   // PUT /hymns/:id
   const hymnMatch = route.match(/^hymns\/(\d+)$/)
   if (method === 'PUT' && hymnMatch) {
@@ -140,6 +193,8 @@ export async function onRequest({ request, env, params }) {
   // DELETE /hymns/:id
   if (method === 'DELETE' && hymnMatch) {
     const id = Number(hymnMatch[1])
+    const row = await DB.prepare('SELECT audio_key FROM hymns WHERE id=?').bind(id).first()
+    if (row?.audio_key) await env.HYMNS_AUDIO.delete(row.audio_key).catch(() => {})
     await DB.prepare('DELETE FROM hymns WHERE id=?').bind(id).run()
     return json({ ok: true })
   }

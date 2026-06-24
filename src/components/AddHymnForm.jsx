@@ -10,6 +10,9 @@ export default function AddHymnForm({ onSubmit, onCancel, initialHymn = null }) 
   const [lyrics, setLyrics] = useState(initialHymn?.lyrics ?? '')
   const [lastSelectedDate, setLastSelectedDate] = useState(initialHymn?.lastSelectedDate ?? '')
   const [titleError, setTitleError] = useState('')
+  const [audioFile, setAudioFile] = useState(null)         // newly selected File
+  const [removeAudio, setRemoveAudio] = useState(false)    // intent to delete existing
+  const hasExistingAudio = !!initialHymn?.audioKey && !removeAudio
 
   function toggleTag(tag) {
     setTags(prev =>
@@ -23,7 +26,7 @@ export default function AddHymnForm({ onSubmit, onCancel, initialHymn = null }) 
       setTitleError('请填写歌名')
       return
     }
-    onSubmit({ title: title.trim(), tags, theme: theme.trim(), lyrics: lyrics.trim(), lastSelectedDate })
+    onSubmit({ title: title.trim(), tags, theme: theme.trim(), lyrics: lyrics.trim(), lastSelectedDate, audioFile, removeAudio })
   }
 
   return (
@@ -111,6 +114,65 @@ export default function AddHymnForm({ onSubmit, onCancel, initialHymn = null }) 
           value={lastSelectedDate}
           onChange={e => setLastSelectedDate(e.target.value)}
         />
+      </div>
+
+      <div className="form-group">
+        <span className="form-label">
+          音频
+          <span className="form-optional">（MP3，选填）</span>
+        </span>
+
+        {hasExistingAudio && !audioFile && (
+          <div className="audio-existing">
+            <span className="audio-existing-label">已上传音频文件</span>
+            <div className="audio-existing-actions">
+              <label className="btn btn-secondary btn-sm audio-replace-label">
+                更换
+                <input
+                  type="file"
+                  accept="audio/mpeg,.mp3"
+                  className="audio-file-input"
+                  onChange={e => { setAudioFile(e.target.files?.[0] ?? null); e.target.value = '' }}
+                />
+              </label>
+              <button
+                type="button"
+                className="btn btn-danger btn-sm"
+                onClick={() => setRemoveAudio(true)}
+              >
+                删除
+              </button>
+            </div>
+          </div>
+        )}
+
+        {removeAudio && !audioFile && (
+          <div className="audio-pending-remove">
+            <span>保存后将删除音频文件</span>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setRemoveAudio(false)}>
+              撤销
+            </button>
+          </div>
+        )}
+
+        {audioFile ? (
+          <div className="audio-selected">
+            <span className="audio-selected-name" title={audioFile.name}>{audioFile.name}</span>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAudioFile(null)}>
+              取消
+            </button>
+          </div>
+        ) : !hasExistingAudio && !removeAudio && (
+          <label className="btn btn-secondary audio-pick-label">
+            选择 MP3 文件
+            <input
+              type="file"
+              accept="audio/mpeg,.mp3"
+              className="audio-file-input"
+              onChange={e => { setAudioFile(e.target.files?.[0] ?? null); e.target.value = '' }}
+            />
+          </label>
+        )}
       </div>
 
       <div className="form-actions">
