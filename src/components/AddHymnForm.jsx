@@ -10,9 +10,21 @@ export default function AddHymnForm({ onSubmit, onCancel, initialHymn = null }) 
   const [lyrics, setLyrics] = useState(initialHymn?.lyrics ?? '')
   const [lastSelectedDate, setLastSelectedDate] = useState(initialHymn?.lastSelectedDate ?? '')
   const [titleError, setTitleError] = useState('')
-  const [audioFile, setAudioFile] = useState(null)         // newly selected File
-  const [removeAudio, setRemoveAudio] = useState(false)    // intent to delete existing
+  const [audioFile, setAudioFile] = useState(null)
+  const [audioDuration, setAudioDuration] = useState(null)
+  const [removeAudio, setRemoveAudio] = useState(false)
   const hasExistingAudio = !!initialHymn?.audioKey && !removeAudio
+
+  function pickAudioFile(file) {
+    setAudioFile(file)
+    setAudioDuration(null)
+    if (!file) return
+    const url = URL.createObjectURL(file)
+    const a = new Audio()
+    a.onloadedmetadata = () => { setAudioDuration(Math.round(a.duration)); URL.revokeObjectURL(url) }
+    a.onerror = () => URL.revokeObjectURL(url)
+    a.src = url
+  }
 
   function toggleTag(tag) {
     setTags(prev =>
@@ -26,7 +38,7 @@ export default function AddHymnForm({ onSubmit, onCancel, initialHymn = null }) 
       setTitleError('请填写歌名')
       return
     }
-    onSubmit({ title: title.trim(), tags, theme: theme.trim(), lyrics: lyrics.trim(), lastSelectedDate, audioFile, removeAudio })
+    onSubmit({ title: title.trim(), tags, theme: theme.trim(), lyrics: lyrics.trim(), lastSelectedDate, audioFile, audioDuration, removeAudio })
   }
 
   return (
@@ -132,7 +144,7 @@ export default function AddHymnForm({ onSubmit, onCancel, initialHymn = null }) 
                   type="file"
                   accept="audio/mpeg,.mp3"
                   className="audio-file-input"
-                  onChange={e => { setAudioFile(e.target.files?.[0] ?? null); e.target.value = '' }}
+                  onChange={e => { pickAudioFile(e.target.files?.[0] ?? null); e.target.value = '' }}
                 />
               </label>
               <button
@@ -158,7 +170,7 @@ export default function AddHymnForm({ onSubmit, onCancel, initialHymn = null }) 
         {audioFile ? (
           <div className="audio-selected">
             <span className="audio-selected-name" title={audioFile.name}>{audioFile.name}</span>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAudioFile(null)}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => pickAudioFile(null)}>
               取消
             </button>
           </div>
@@ -169,7 +181,7 @@ export default function AddHymnForm({ onSubmit, onCancel, initialHymn = null }) 
               type="file"
               accept="audio/mpeg,.mp3"
               className="audio-file-input"
-              onChange={e => { setAudioFile(e.target.files?.[0] ?? null); e.target.value = '' }}
+              onChange={e => { pickAudioFile(e.target.files?.[0] ?? null); e.target.value = '' }}
             />
           </label>
         )}

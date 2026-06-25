@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useAudioPlayer, formatTime } from '../hooks/useAudioPlayer'
 import { api } from '../api'
 
@@ -9,10 +10,19 @@ function formatDate(dateStr) {
   return `${y}年${Number(m)}月${Number(d)}日`
 }
 
-function AudioPlayer({ hymnId }) {
+function AudioPlayer({ hymnId, audioDuration }) {
   const url = api.getAudioUrl(hymnId)
-  const { isPlaying, isLoading, currentTime, duration, toggle, seek } = useAudioPlayer(url)
-  const progress = duration > 0 ? currentTime / duration : 0
+  const { isPlaying, isLoading, currentTime, duration, toggle, seek } = useAudioPlayer(url, audioDuration)
+  // scrubValue: non-null while user is dragging, so timeupdate doesn't fight the thumb
+  const [scrubValue, setScrubValue] = useState(null)
+  const isScrubbing = scrubValue !== null
+  const displayTime = isScrubbing ? scrubValue : currentTime
+  const progress = duration > 0 ? displayTime / duration : 0
+
+  function commitSeek(value) {
+    seek(value)
+    setScrubValue(null)
+  }
 
   return (
     <div className="audio-player">
@@ -30,15 +40,18 @@ function AudioPlayer({ hymnId }) {
           className="audio-player-range"
           min={0}
           max={duration || 100}
-          step={0.1}
-          value={currentTime}
-          onChange={e => seek(Number(e.target.value))}
+          step={0.5}
+          value={displayTime}
+          onChange={e => setScrubValue(Number(e.target.value))}
+          onMouseUp={e => commitSeek(Number(e.currentTarget.value))}
+          onTouchEnd={e => commitSeek(Number(e.currentTarget.value))}
+          onKeyUp={e => commitSeek(Number(e.currentTarget.value))}
           aria-label="播放进度"
         />
         <div className="audio-player-fill" style={{ width: `${progress * 100}%` }} />
       </div>
       <span className="audio-player-time">
-        {formatTime(currentTime)}{duration > 0 ? ` / ${formatTime(duration)}` : ''}
+        {formatTime(displayTime)}{duration > 0 ? ` / ${formatTime(duration)}` : ''}
       </span>
     </div>
   )
@@ -81,7 +94,7 @@ export default function HymnDetail({ hymn, onBack }) {
       {hymn.audioKey && (
         <div className="detail-section">
           <h3 className="detail-section-title">音频</h3>
-          <AudioPlayer hymnId={hymn.id} />
+          <AudioPlayer hymnId={hymn.id} audioDuration={hymn.audioDuration} />
         </div>
       )}
 

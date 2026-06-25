@@ -48,7 +48,7 @@ function App() {
   }
 
   async function handleSubmitForm(data) {
-    const { audioFile, removeAudio, ...hymnData } = data
+    const { audioFile, audioDuration, removeAudio, ...hymnData } = data
     try {
       let hymn
       if (view === 'edit' && editingHymn) {
@@ -61,7 +61,7 @@ function App() {
         await api.deleteAudio(hymn.id)
         hymn = { ...hymn, audioKey: null }
       } else if (audioFile) {
-        hymn = await api.uploadAudio(hymn.id, audioFile)
+        hymn = await api.uploadAudio(hymn.id, audioFile, audioDuration)
       }
 
       if (view === 'edit' && editingHymn) {

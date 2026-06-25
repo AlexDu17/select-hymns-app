@@ -39,9 +39,10 @@ export const api = {
   deleteHymn: (id) => request('DELETE', `hymns/${id}`),
 
   // Audio — uploadAudio returns the updated hymn with audioKey set
-  uploadAudio: async (hymnId, file) => {
+  uploadAudio: async (hymnId, file, duration = null) => {
     const formData = new FormData()
     formData.append('file', file)
+    if (duration != null) formData.append('duration', String(duration))
     const res = await fetch(`/api/hymns/${hymnId}/audio`, { method: 'PUT', body: formData })
     if (res.status === 401) { unauthorizedHandler?.(); throw new Error('未登录') }
     if (!res.ok) { const t = await res.text().catch(() => ''); throw new Error(`上传失败: ${t}`) }

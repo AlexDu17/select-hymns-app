@@ -21,7 +21,7 @@ export default function HymnCard({ hymn, index, onEdit, onDelete, onAddToQueue, 
   const [queueDate, setQueueDate] = useState('')
   const tomorrow = getTomorrow()
   const audioUrl = hymn.audioKey ? api.getAudioUrl(hymn.id) : null
-  const { isPlaying, isLoading, toggle } = useAudioPlayer(audioUrl)
+  const { isPlaying, isLoading, toggle } = useAudioPlayer(audioUrl, hymn.audioDuration)
 
   function handleConfirm() {
     if (!queueDate) return

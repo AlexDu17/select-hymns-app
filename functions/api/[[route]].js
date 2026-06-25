@@ -50,6 +50,7 @@ function rowToHymn(row) {
     lyrics: row.lyrics || '',
     lastSelectedDate: row.last_selected_date || '',
     audioKey: row.audio_key || null,
+    audioDuration: row.audio_duration ?? null,
   }
 }
 
@@ -134,10 +135,13 @@ export async function onRequest({ request, env, params }) {
     const file = formData.get('file')
     if (!file) return err('no file', 400)
     const key = `hymns/${id}.mp3`
+    const durationRaw = formData.get('duration')
+    const duration = durationRaw ? Math.round(Number(durationRaw)) : null
     await env.HYMNS_AUDIO.put(key, file.stream(), {
       httpMetadata: { contentType: 'audio/mpeg' },
     })
-    await DB.prepare('UPDATE hymns SET audio_key=? WHERE id=?').bind(key, id).run()
+    await DB.prepare('UPDATE hymns SET audio_key=?, audio_duration=? WHERE id=?')
+      .bind(key, duration, id).run()
     const row = await DB.prepare('SELECT * FROM hymns WHERE id=?').bind(id).first()
     if (!row) return err('not found', 404)
     return json(rowToHymn(row))

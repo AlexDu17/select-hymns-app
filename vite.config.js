@@ -74,11 +74,15 @@ function mockApiPlugin() {
           // Audio routes — must come before hymn CRUD routes
           const hymnAudioMatch = path.match(/^hymns\/(\d+)\/audio$/)
 
-          // PUT /api/hymns/:id/audio (mock: record audioKey without storing file)
+          // PUT /api/hymns/:id/audio (mock: record audioKey + duration without storing file)
           if (method === 'PUT' && hymnAudioMatch) {
             const id = Number(hymnAudioMatch[1])
             const key = `hymns/${id}.mp3`
-            hymns = hymns.map(h => h.id === id ? { ...h, audioKey: key } : h)
+            // Parse duration from multipart — read from trailing text fields if present
+            const rawBody = Buffer.concat(chunks).toString('latin1')
+            const durMatch = rawBody.match(/name="duration"\r\n\r\n(\d+(?:\.\d+)?)/)
+            const audioDuration = durMatch ? Math.round(Number(durMatch[1])) : null
+            hymns = hymns.map(h => h.id === id ? { ...h, audioKey: key, audioDuration } : h)
             const updated = hymns.find(h => h.id === id)
             return updated ? send(res, { ...updated }) : send(res, { error: 'not found' }, 404)
           }

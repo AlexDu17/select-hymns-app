@@ -1,0 +1,1 @@
+ALTER TABLE hymns ADD COLUMN audio_duration INTEGER DEFAULT NULL;
